@@ -446,7 +446,8 @@ const Frota = {
     try {
       const wb      = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type:'array' });
       const ws      = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      // header:1 → returns array of arrays. raw:false → converts all to strings
+      const rawRows = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' });
 
       const list = parseChecklistPlanilha(rawRows);
 
@@ -867,17 +868,6 @@ function pdfFooter(doc) {
 }
 
 // ─── Parser: Relatório Checklist (formato real da planilha) ────────────────
-//
-// Estrutura de cada bloco:
-//   Veículo: FLC4295          PROPRIO
-//   Data da Realização: ...   Validade: ...
-//   Responsavel: Nome         CPF
-//   Operador: nome
-//   Dispositivos Avaliados    Situação
-//   BLOQUEIO                  Ok
-//   GPS                       Defeito
-//   ...  (blank line separates blocks)
-
 function parseChecklistPlanilha(rows) {
   const records = [];
   let current   = null;
@@ -885,12 +875,11 @@ function parseChecklistPlanilha(rows) {
 
   function finalizeCurrent() {
     if (!current) return;
-    current.dispositivos     = devices;
-    current.totalDispositivos = devices.length;
-    current.dispositivosOk   = devices.filter(d => d.situacao.toLowerCase() === 'ok').length;
-    current.dispositivosDefeito = devices.filter(d => d.situacao.toLowerCase() !== 'ok').length;
+    current.dispositivos        = devices.slice();
+    current.totalDispositivos   = devices.length;
+    current.dispositivosOk      = devices.filter(d => (d.situacao||'').toLowerCase() === 'ok').length;
+    current.dispositivosDefeito = devices.filter(d => (d.situacao||'').toLowerCase() !== 'ok').length;
 
-    // Derive statusChecklist from validade text
     const val = (current.validadeRaw || '').trim();
     let statusChecklist, vigenciaChecklist;
 
@@ -904,7 +893,6 @@ function parseChecklistPlanilha(rows) {
       statusChecklist   = 'OK';
       vigenciaChecklist = '';
     } else {
-      // Try to parse a date like "15/04/2026 18:00"
       const dateMatch = val.match(/(\d{2}\/\d{2}\/\d{4})/);
       if (dateMatch) {
         const d = parseDate(dateMatch[1]);
@@ -916,7 +904,6 @@ function parseChecklistPlanilha(rows) {
       }
     }
 
-    // If any device has defeito, downgrade to PENDENTE
     if (current.dispositivosDefeito > 0 && statusChecklist === 'OK') {
       statusChecklist = 'PENDENTE';
     }
@@ -924,31 +911,32 @@ function parseChecklistPlanilha(rows) {
     current.statusChecklist   = statusChecklist;
     current.vigenciaChecklist = vigenciaChecklist;
     current.statusGeral       = calcStatus(vigenciaChecklist, statusChecklist);
-
     records.push(current);
   }
 
   for (const row of rows) {
-    const a = String(row[0] || '').trim();
-    const b = String(row[1] || '').trim();
+    // row is an array: [colA, colB, colC, ...]
+    // cells can be null, undefined, number, date or string
+    const a = row[0] != null ? String(row[0]).trim() : '';
+    const b = row[1] != null ? String(row[1]).trim() : '';
 
-    // ── New vehicle/trailer block ──
-    if (/^veículo:/i.test(a) || /^veiculo:/i.test(a)) {
+    // ── New vehicle block ──────────────────────────
+    if (/^ve[íi]culo\s*:/i.test(a)) {
       finalizeCurrent();
       current = {
         tipo:        'Veículo',
-        placa:       a.replace(/^veí?culo:\s*/i, '').trim().toUpperCase(),
-        propriedade: b,
+        placa:       a.replace(/^ve[íi]culo\s*:\s*/i, '').trim().toUpperCase(),
+        propriedade: b || '',
       };
       devices = [];
       continue;
     }
-    if (/^carreta:/i.test(a)) {
+    if (/^carreta\s*:/i.test(a)) {
       finalizeCurrent();
       current = {
         tipo:        'Carreta',
-        placa:       a.replace(/^carreta:\s*/i, '').trim().toUpperCase(),
-        propriedade: b,
+        placa:       a.replace(/^carreta\s*:\s*/i, '').trim().toUpperCase(),
+        propriedade: b || '',
       };
       devices = [];
       continue;
@@ -956,30 +944,27 @@ function parseChecklistPlanilha(rows) {
 
     if (!current) continue;
 
-    // ── Block metadata ──
+    // ── Block metadata ─────────────────────────────
     if (/^data da realiza/i.test(a)) {
-      const dateStr = a.replace(/^data da realiza[çc][ãa]o:\s*/i, '').trim();
-      current.dataRealizacao = dateStr;
-      current.validadeRaw    = b.replace(/^validade:\s*/i, '').trim();
+      current.dataRealizacao = a.replace(/^data da realiza[çc][ãa]o\s*:\s*/i, '').trim();
+      current.validadeRaw    = b.replace(/^validade\s*:\s*/i, '').trim();
       continue;
     }
-    if (/^responsavel:/i.test(a)) {
-      current.responsavel = a.replace(/^responsavel:\s*/i, '').trim();
+    if (/^respons[aá]vel\s*:/i.test(a)) {
+      current.responsavel = a.replace(/^respons[aá]vel\s*:\s*/i, '').trim();
       current.cpf         = b;
       continue;
     }
-    if (/^operador:/i.test(a)) {
-      current.operador = a.replace(/^operador:\s*/i, '').trim();
+    if (/^operador\s*:/i.test(a)) {
+      current.operador = a.replace(/^operador\s*:\s*/i, '').trim();
       continue;
     }
 
-    // ── Device rows ──
-    if (a && b && !/^dispositivos/i.test(a)) {
-      const situLow = b.toLowerCase();
-      if (situLow === 'ok' || situLow === 'defeito' || situLow === 'situação') {
-        if (situLow !== 'situação') {
-          devices.push({ dispositivo: a, situacao: b });
-        }
+    // ── Device rows ────────────────────────────────
+    if (a && b && !/^dispositivos\s+avaliados/i.test(a)) {
+      const sit = b.toLowerCase();
+      if (sit === 'ok' || sit === 'defeito') {
+        devices.push({ dispositivo: a, situacao: b });
       }
     }
   }
