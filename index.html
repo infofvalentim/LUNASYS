@@ -111,9 +111,12 @@
           <thead>
             <tr>
               <th onclick="Frota.sort('placa')">Placa <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('vigenciaChecklist')">Vigência <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('statusChecklist')">Status Checklist <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('statusGeral')">Status Geral <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('tipo')">Tipo <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('propriedade')">Propriedade <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('dataRealizacao')">Data Realização <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('vigenciaChecklist')">Validade <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('statusChecklist')">Status <span class="sort-icon">↕</span></th>
+              <th onclick="Frota.sort('dispositivosDefeito')">Defeitos <span class="sort-icon">↕</span></th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -207,34 +210,45 @@
 
   <!-- ─── MODAL VEÍCULO ──────────────────────────── -->
   <div id="vehicleModal" class="modal-bg hidden" onclick="if(event.target===this)Frota.closeModal()">
-    <div class="modal">
+    <div class="modal modal-wide">
       <h3 id="vehicleModalTitle" class="modal-title">Novo Veículo</h3>
-      <form id="vehicleForm" onsubmit="Frota.saveModal(event)">
-        <div class="field">
-          <label>Placa *</label>
-          <input type="text" id="mPlaca" placeholder="ABC1D23" required />
-          <span id="mPlacaErr" class="form-error hidden">Obrigatório</span>
-        </div>
-        <div class="field">
-          <label>Vigência do Checklist *</label>
-          <input type="date" id="mVigencia" required />
-          <span id="mVigenciaErr" class="form-error hidden">Obrigatório</span>
-        </div>
-        <div class="field">
-          <label>Status do Checklist *</label>
-          <select id="mStatus" required>
-            <option value="">Selecione...</option>
-            <option value="OK">OK</option>
-            <option value="PENDENTE">PENDENTE</option>
-            <option value="VENCIDO">VENCIDO</option>
-          </select>
-          <span id="mStatusErr" class="form-error hidden">Obrigatório</span>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="Frota.closeModal()">Cancelar</button>
-          <button type="submit" class="btn btn-success">✅ Salvar</button>
-        </div>
-      </form>
+
+      <!-- Detail view (shown when clicking Ver) -->
+      <div id="vehicleModalContent" class="hidden"></div>
+
+      <!-- Form (shown when clicking Novo/Editar) -->
+      <div id="vehicleModalForm">
+        <form id="vehicleForm" onsubmit="Frota.saveModal(event)">
+          <div class="field">
+            <label>Placa *</label>
+            <input type="text" id="mPlaca" placeholder="ABC1D23" required />
+            <span id="mPlacaErr" class="form-error hidden">Obrigatório</span>
+          </div>
+          <div class="field">
+            <label>Vigência do Checklist *</label>
+            <input type="date" id="mVigencia" required />
+            <span id="mVigenciaErr" class="form-error hidden">Obrigatório</span>
+          </div>
+          <div class="field">
+            <label>Status do Checklist *</label>
+            <select id="mStatus" required>
+              <option value="">Selecione...</option>
+              <option value="OK">OK</option>
+              <option value="PENDENTE">PENDENTE</option>
+              <option value="VENCIDO">VENCIDO</option>
+            </select>
+            <span id="mStatusErr" class="form-error hidden">Obrigatório</span>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="Frota.closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-success">✅ Salvar</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="vehicleModalActions" class="modal-actions" style="display:none">
+        <button class="btn btn-secondary" onclick="Frota.closeModal()">Fechar</button>
+      </div>
     </div>
   </div>
 

@@ -299,14 +299,22 @@ const Frota = {
         const rowCls   = { PENDENTE:'row-pending', VENCIDO:'row-expired' }[v.statusGeral] || '';
         const canEdit  = can('vehicles.write');
         const canDel   = can('vehicles.delete');
+        const defeitoBadge = v.dispositivosDefeito > 0
+          ? `<span class="badge badge-danger">${v.dispositivosDefeito} defeito${v.dispositivosDefeito>1?'s':''}</span>`
+          : `<span class="badge badge-success">OK</span>`;
         return `<tr class="${rowCls}">
           <td><span class="plate">${esc(v.placa)}</span></td>
-          <td>${fmtDate(v.vigenciaChecklist)}</td>
-          <td>${esc(v.statusChecklist||'-')}</td>
-          <td><span class="badge ${badgeCls}">${esc(v.statusGeral||'-')}</span></td>
+          <td>${esc(v.tipo||'-')}</td>
+          <td><span class="badge badge-secondary" style="font-size:10px">${esc(v.propriedade||'-')}</span></td>
+          <td style="font-size:12px">${esc(v.dataRealizacao||'-')}</td>
+          <td style="font-size:12px">${v.vigenciaChecklist ? fmtDate(v.vigenciaChecklist) : esc(v.validadeRaw||'-')}</td>
+          <td><span class="badge ${badgeCls}">${esc(v.statusChecklist||'-')}</span></td>
+          <td>${defeitoBadge}</td>
           <td>
-            ${canEdit ? `<button class="btn btn-sm btn-warning" onclick="Frota.openModal('${esc(v.placa)}')">Editar</button>` : ''}
-            ${canDel  ? `<button class="btn btn-sm btn-danger"  onclick="Frota.delete('${esc(v.placa)}')">Excluir</button>` : ''}
+            <div class="actions">
+              <button class="btn btn-sm btn-secondary" onclick="Frota.openDetail('${esc(v.placa)}')">👁️ Ver</button>
+              ${canDel ? `<button class="btn btn-sm btn-danger" onclick="Frota.delete('${esc(v.placa)}')">🗑️</button>` : ''}
+            </div>
           </td>
         </tr>`;
       }).join('');
@@ -316,6 +324,44 @@ const Frota = {
       `${v.length} veículos · ${data.length} filtrados`;
   },
 
+  openDetail(placa) {
+    const v = State.vehicles.find(x => x.placa === placa);
+    if (!v) return;
+    const devs = v.dispositivos || [];
+    const ok      = devs.filter(d => d.situacao.toLowerCase()==='ok');
+    const defeito = devs.filter(d => d.situacao.toLowerCase()!=='ok');
+    document.getElementById('vehicleModalTitle').textContent = `${v.placa} — Detalhes do Checklist`;
+    document.getElementById('vehicleModalContent').innerHTML = `
+      <div class="detail-grid">
+        <div class="detail-row"><span class="detail-label">Placa</span><span class="plate">${esc(v.placa)}</span></div>
+        <div class="detail-row"><span class="detail-label">Tipo</span><span>${esc(v.tipo||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Propriedade</span><span>${esc(v.propriedade||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Status</span><span class="badge ${v.statusChecklist==='OK'?'badge-success':v.statusChecklist==='VENCIDO'?'badge-danger':'badge-warning'}">${esc(v.statusChecklist||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Data Realização</span><span>${esc(v.dataRealizacao||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Validade</span><span>${v.vigenciaChecklist?fmtDate(v.vigenciaChecklist):esc(v.validadeRaw||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Responsável</span><span>${esc(v.responsavel||'-')}</span></div>
+        <div class="detail-row"><span class="detail-label">Operador</span><span>${esc(v.operador||'-')}</span></div>
+      </div>
+      ${defeito.length > 0 ? `
+      <div class="detail-block" style="border-left:3px solid var(--red)">
+        <span class="detail-label">⚠️ Dispositivos com defeito (${defeito.length})</span>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+          ${defeito.map(d=>`<span class="badge badge-danger">${esc(d.dispositivo)}</span>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="detail-block">
+        <span class="detail-label">✅ Dispositivos OK (${ok.length})</span>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+          ${ok.map(d=>`<span class="badge badge-success" style="font-size:10px">${esc(d.dispositivo)}</span>`).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('vehicleModalForm').classList.add('hidden');
+    document.getElementById('vehicleModalContent').classList.remove('hidden');
+    document.getElementById('vehicleModalActions').style.display = 'flex';
+    document.getElementById('vehicleModal').classList.remove('hidden');
+  },
+
   openModal(placa = null) {
     this.editing = placa;
     const isNew  = !placa;
@@ -323,9 +369,11 @@ const Frota = {
     document.getElementById('mPlacaErr').classList.add('hidden');
     document.getElementById('mVigenciaErr').classList.add('hidden');
     document.getElementById('mStatusErr').classList.add('hidden');
+    document.getElementById('vehicleModalContent').classList.add('hidden');
+    document.getElementById('vehicleModalForm').classList.remove('hidden');
 
     if (isNew) {
-      document.getElementById('mPlaca').value   = '';
+      document.getElementById('mPlaca').value    = '';
       document.getElementById('mVigencia').value = '';
       document.getElementById('mStatus').value   = '';
       document.getElementById('mPlaca').disabled = false;
@@ -341,6 +389,9 @@ const Frota = {
 
   closeModal() {
     document.getElementById('vehicleModal').classList.add('hidden');
+    document.getElementById('vehicleModalContent').classList.add('hidden');
+    document.getElementById('vehicleModalForm').classList.remove('hidden');
+    document.getElementById('vehicleModalActions').style.display = 'none';
   },
 
   saveModal(e) {
@@ -393,29 +444,21 @@ const Frota = {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const wb   = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type:'array' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      const list = rows.map(row => {
-        const placa = getField(row, ['Veículo','Veiculo','Placa','PLACA','VEÍCULO']);
-        if (!placa) return null;
-        const statusRaw   = getField(row, ['Status','STATUS','Status Checklist']);
-        const validadeRaw = getField(row, ['Validade','Vencimento','Validade Checklist']);
-        const dataRaw     = getField(row, ['Data Realização','Data Realizacao','Data']);
-        const statusChecklist = normStatus(statusRaw);
-        let vigenciaChecklist = toInputDate(validadeRaw);
-        if (!vigenciaChecklist && dataRaw) {
-          const d = parseDate(dataRaw);
-          if (d) { d.setDate(d.getDate()+30); vigenciaChecklist = d.toISOString().split('T')[0]; }
-        }
-        return { placa: placa.toUpperCase().trim(), vigenciaChecklist, statusChecklist,
-                 statusGeral: calcStatus(vigenciaChecklist, statusChecklist) };
-      }).filter(Boolean);
+      const wb      = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type:'array' });
+      const ws      = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+      const list = parseChecklistPlanilha(rawRows);
 
       if (!list.length) { toast('Nenhum veículo válido encontrado','warning'); return; }
-      State.vehicles = list;
+
+      // Merge: keep existing vehicles not in this import, add/update imported ones
+      const importedPlacas = new Set(list.map(v => v.placa));
+      const kept = State.vehicles.filter(v => !importedPlacas.has(v.placa));
+      State.vehicles = [...kept, ...list];
       State.save();
       this.render();
-      toast(`✅ ${list.length} veículos importados`,'success');
+      toast(`✅ ${list.length} registros importados`,'success');
     } catch(err) {
       toast(`❌ ${err.message}`,'error');
     } finally {
@@ -821,6 +864,128 @@ function pdfFooter(doc) {
     doc.setTextColor(130);
     doc.text(`Pág. ${i}/${n} — LUNASYS`, 105, 285, { align:'center' });
   }
+}
+
+// ─── Parser: Relatório Checklist (formato real da planilha) ────────────────
+//
+// Estrutura de cada bloco:
+//   Veículo: FLC4295          PROPRIO
+//   Data da Realização: ...   Validade: ...
+//   Responsavel: Nome         CPF
+//   Operador: nome
+//   Dispositivos Avaliados    Situação
+//   BLOQUEIO                  Ok
+//   GPS                       Defeito
+//   ...  (blank line separates blocks)
+
+function parseChecklistPlanilha(rows) {
+  const records = [];
+  let current   = null;
+  let devices   = [];
+
+  function finalizeCurrent() {
+    if (!current) return;
+    current.dispositivos     = devices;
+    current.totalDispositivos = devices.length;
+    current.dispositivosOk   = devices.filter(d => d.situacao.toLowerCase() === 'ok').length;
+    current.dispositivosDefeito = devices.filter(d => d.situacao.toLowerCase() !== 'ok').length;
+
+    // Derive statusChecklist from validade text
+    const val = (current.validadeRaw || '').trim();
+    let statusChecklist, vigenciaChecklist;
+
+    if (/vencido/i.test(val)) {
+      statusChecklist   = 'VENCIDO';
+      vigenciaChecklist = '';
+    } else if (/não ok|nao ok/i.test(val)) {
+      statusChecklist   = 'PENDENTE';
+      vigenciaChecklist = '';
+    } else if (/ok até embarque|ok ate embarque/i.test(val)) {
+      statusChecklist   = 'OK';
+      vigenciaChecklist = '';
+    } else {
+      // Try to parse a date like "15/04/2026 18:00"
+      const dateMatch = val.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (dateMatch) {
+        const d = parseDate(dateMatch[1]);
+        vigenciaChecklist = d ? d.toISOString().split('T')[0] : '';
+        statusChecklist   = current.dispositivosDefeito > 0 ? 'PENDENTE' : 'OK';
+      } else {
+        statusChecklist   = 'PENDENTE';
+        vigenciaChecklist = '';
+      }
+    }
+
+    // If any device has defeito, downgrade to PENDENTE
+    if (current.dispositivosDefeito > 0 && statusChecklist === 'OK') {
+      statusChecklist = 'PENDENTE';
+    }
+
+    current.statusChecklist   = statusChecklist;
+    current.vigenciaChecklist = vigenciaChecklist;
+    current.statusGeral       = calcStatus(vigenciaChecklist, statusChecklist);
+
+    records.push(current);
+  }
+
+  for (const row of rows) {
+    const a = String(row[0] || '').trim();
+    const b = String(row[1] || '').trim();
+
+    // ── New vehicle/trailer block ──
+    if (/^veículo:/i.test(a) || /^veiculo:/i.test(a)) {
+      finalizeCurrent();
+      current = {
+        tipo:        'Veículo',
+        placa:       a.replace(/^veí?culo:\s*/i, '').trim().toUpperCase(),
+        propriedade: b,
+      };
+      devices = [];
+      continue;
+    }
+    if (/^carreta:/i.test(a)) {
+      finalizeCurrent();
+      current = {
+        tipo:        'Carreta',
+        placa:       a.replace(/^carreta:\s*/i, '').trim().toUpperCase(),
+        propriedade: b,
+      };
+      devices = [];
+      continue;
+    }
+
+    if (!current) continue;
+
+    // ── Block metadata ──
+    if (/^data da realiza/i.test(a)) {
+      const dateStr = a.replace(/^data da realiza[çc][ãa]o:\s*/i, '').trim();
+      current.dataRealizacao = dateStr;
+      current.validadeRaw    = b.replace(/^validade:\s*/i, '').trim();
+      continue;
+    }
+    if (/^responsavel:/i.test(a)) {
+      current.responsavel = a.replace(/^responsavel:\s*/i, '').trim();
+      current.cpf         = b;
+      continue;
+    }
+    if (/^operador:/i.test(a)) {
+      current.operador = a.replace(/^operador:\s*/i, '').trim();
+      continue;
+    }
+
+    // ── Device rows ──
+    if (a && b && !/^dispositivos/i.test(a)) {
+      const situLow = b.toLowerCase();
+      if (situLow === 'ok' || situLow === 'defeito' || situLow === 'situação') {
+        if (situLow !== 'situação') {
+          devices.push({ dispositivo: a, situacao: b });
+        }
+      }
+    }
+  }
+
+  finalizeCurrent();
+  return records;
 }
 
 // ─── Start ─────────────────────────────────────────
