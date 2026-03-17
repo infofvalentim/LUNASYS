@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>LUNASYS — Gestão de Logística</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
-  <!-- Libraries via CDN — no install needed -->
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -16,256 +14,251 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- LOGIN                                        -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div id="loginScreen" class="login-screen">
-    <div class="login-card">
-      <div class="login-logo">🚛</div>
-      <h2 class="login-title">LUNASYS</h2>
-      <p class="login-sub">Sistema de Gestão de Logística</p>
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🚛</div>
+    <h2 class="login-title">LUNASYS</h2>
+    <p class="login-sub">Sistema de Gestão de Logística</p>
+    <form id="loginForm" class="login-form">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required/>
+      </div>
+      <p id="loginError" class="form-error hidden">Email ou senha incorretos.</p>
+      <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+    </form>
+  </div>
+</div>
 
-      <form id="loginForm" class="login-form">
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="loginEmail" placeholder="seu@email.com" required />
-        </div>
-        <div class="field">
-          <label>Senha</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" required />
-        </div>
-        <p id="loginError" class="form-error hidden">❌ Email ou senha incorretos.</p>
-        <button type="submit" class="btn btn-primary btn-full">🔑 Entrar</button>
-      </form>
+<!-- APP -->
+<div id="app" class="app hidden">
 
-      <div class="login-hint">
-        <strong>Usuários de demonstração:</strong><br>
-        admin@rondolog.com / admin123<br>
-        gerente@rondolog.com / gerente123<br>
-        operador@rondolog.com / operador123
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-logo">🚛</span>
+        <div>
+          <div class="brand-name">LUNASYS</div>
+          <div class="brand-sub">Gestão de Logística</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="roleBadge" class="role-badge"></span>
+        <span id="userName" class="user-name"></span>
+        <button class="hdr-btn" onclick="App.toggleTheme()">🌙</button>
+        <button class="hdr-btn hdr-btn-exit" onclick="App.logout()">Sair</button>
       </div>
     </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="frota"    onclick="App.showTab('frota')">✅ Checklist Frota</button>
+      <button class="tab-btn"        data-tab="nc"       onclick="App.showTab('nc')" id="tabNC">🚨 Não Conformidades</button>
+      <button class="tab-btn"        data-tab="dashboard" onclick="App.showTab('dashboard')" id="tabDash">📊 Dashboard</button>
+    </nav>
+  </header>
+
+  <!-- ALERT BANNER -->
+  <div id="alertBanner" class="alert-banner hidden"></div>
+
+  <!-- ── ABA FROTA ── -->
+  <div id="tabFrota" class="tab-content active">
+    <div class="cards" id="frotaCards"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select id="frotaStatus" onchange="Frota.filter()">
+          <option value="all">Todos os status</option>
+          <option value="OK">✅ OK</option>
+          <option value="PENDENTE">⚠️ Pendentes</option>
+          <option value="VENCIDO">🔴 Vencidos</option>
+        </select>
+        <input type="date" id="frotaDate" onchange="Frota.filter()"/>
+        <input type="text" id="frotaSearch" placeholder="Buscar placa..." oninput="Frota.filter()"/>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-success" onclick="Frota.openModal()" id="btnNovoVeiculo">➕ Novo</button>
+        <label class="btn btn-secondary" id="btnImportFrota">
+          📁 Importar Excel
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="Frota.import(event)" hidden/>
+        </label>
+        <button class="btn btn-secondary" onclick="Frota.exportXLS()">📊 Excel</button>
+        <button class="btn btn-secondary" onclick="Frota.exportPDF()">📋 PDF</button>
+        <button class="btn btn-warn" onclick="Frota.exportVencidosPDF()">🔴 PDF Vencidos</button>
+        <button class="btn btn-danger" onclick="Frota.clearAll()" id="btnClearFrota">🗑️</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th onclick="Frota.sort('placa')">Placa ↕</th>
+            <th onclick="Frota.sort('tipo')">Tipo ↕</th>
+            <th onclick="Frota.sort('propriedade')">Propriedade ↕</th>
+            <th onclick="Frota.sort('dataRealizacao')">Data Realização ↕</th>
+            <th onclick="Frota.sort('vigenciaChecklist')">Validade ↕</th>
+            <th onclick="Frota.sort('vigenciaChecklist')">Prazo ↕</th>
+            <th onclick="Frota.sort('statusGeral')">Status ↕</th>
+            <th onclick="Frota.sort('dispositivosDefeito')">Dispositivos ↕</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="frotaBody"></tbody>
+      </table>
+    </div>
+    <p class="table-footer" id="frotaFooter"></p>
   </div>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- APP (hidden until login)                     -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div id="app" class="app hidden">
-
-    <!-- Header -->
-    <header class="header">
-      <div class="header-inner">
-        <div class="brand">
-          <span class="brand-name">LUNASYS</span>
-          <span class="brand-sub">Gestão de Logística</span>
-        </div>
-        <div class="header-right">
-          <span id="roleBadge" class="role-badge"></span>
-          <span id="userName" class="user-name"></span>
-          <button class="btn btn-sm btn-outline-white" onclick="App.toggleTheme()">🌙</button>
-          <button class="btn btn-sm btn-outline-white" onclick="App.logout()">Sair</button>
-        </div>
+  <!-- ── ABA NC ── -->
+  <div id="tabNc" class="tab-content hidden">
+    <div class="cards" id="ncCards"></div>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select id="ncType" onchange="NC.filter()">
+          <option value="all">Todos os tipos</option>
+          <option value="inicio_sem_ok">Início sem OK GS</option>
+          <option value="nao_informado">Início Não Informado</option>
+          <option value="dados_incorretos">SM Dados Incorretos</option>
+          <option value="movimento_indevido">Movimento Indevido</option>
+          <option value="isca_problema">Isca com Problema</option>
+          <option value="interacao_cliente">Interação do Cliente</option>
+          <option value="fim_nao_informado">Fim Não Informado</option>
+          <option value="sm_atrasada">SM Enviada Atrasada</option>
+          <option value="fora_romaneio">Fora do Romaneio</option>
+          <option value="outros">Outros</option>
+        </select>
+        <input type="text" id="ncVehicle" placeholder="Veículo..." oninput="NC.filter()"/>
+        <input type="text" id="ncDriver"  placeholder="Motorista..." oninput="NC.filter()"/>
+        <input type="date" id="ncDate" onchange="NC.filter()"/>
       </div>
-
-      <!-- Tabs -->
-      <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="frota" onclick="App.showTab('frota')">✅ Checklist Frota</button>
-        <button class="tab-btn" data-tab="nc" onclick="App.showTab('nc')" id="tabNC">🚨 Não Conformidades</button>
-        <button class="tab-btn" data-tab="dashboard" onclick="App.showTab('dashboard')" id="tabDash">📊 Dashboard</button>
-      </nav>
-    </header>
-
-    <!-- ─── TAB: FROTA ──────────────────────────── -->
-    <div id="tabFrota" class="tab-content active">
-
-      <!-- Summary cards -->
-      <div class="cards" id="frotaCards"></div>
-
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <select id="frotaStatus" onchange="Frota.filter()">
-            <option value="all">Todos</option>
-            <option value="OK">OK</option>
-            <option value="PENDENTE">Pendentes</option>
-            <option value="VENCIDO">Vencidos</option>
-          </select>
-          <input type="date" id="frotaDate" onchange="Frota.filter()" />
-          <input type="text" id="frotaSearch" placeholder="Buscar placa..." oninput="Frota.filter()" />
-        </div>
-        <div class="toolbar-right">
-          <button class="btn btn-success" onclick="Frota.openModal()" id="btnNovoVeiculo">➕ Novo</button>
-          <label class="btn btn-secondary" id="btnImportFrota">
-            📁 Importar Excel
-            <input type="file" accept=".xlsx,.xls,.csv" onchange="Frota.import(event)" hidden />
-          </label>
-          <button class="btn btn-secondary" onclick="Frota.exportXLS()">📊 Excel</button>
-          <button class="btn btn-secondary" onclick="Frota.exportPDF()">📋 PDF</button>
-          <button class="btn btn-danger" onclick="Frota.clearAll()" id="btnClearFrota">🗑️ Limpar</button>
-        </div>
+      <div class="toolbar-right">
+        <label class="btn btn-secondary" id="btnImportNC">
+          📁 Importar Planilha
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="NC.import(event)" hidden/>
+        </label>
+        <button class="btn btn-secondary" onclick="NC.exportXLS()">📊 Excel</button>
+        <button class="btn btn-secondary" onclick="NC.exportPDF()">📋 PDF</button>
+        <button class="btn btn-danger" onclick="NC.clearAll()" id="btnClearNC">🗑️</button>
       </div>
-
-      <!-- Table -->
-      <div class="table-wrap">
-        <table class="table" id="frotaTable">
-          <thead>
-            <tr>
-              <th onclick="Frota.sort('placa')">Placa <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('tipo')">Tipo <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('propriedade')">Propriedade <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('dataRealizacao')">Data Realização <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('vigenciaChecklist')">Validade <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('statusChecklist')">Status <span class="sort-icon">↕</span></th>
-              <th onclick="Frota.sort('dispositivosDefeito')">Defeitos <span class="sort-icon">↕</span></th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="frotaBody"></tbody>
-        </table>
-      </div>
-      <p class="table-footer" id="frotaFooter">0 veículos</p>
     </div>
-
-    <!-- ─── TAB: NÃO CONFORMIDADES ──────────────── -->
-    <div id="tabNc" class="tab-content hidden">
-
-      <div class="cards" id="ncCards"></div>
-
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <select id="ncType" onchange="NC.filter()">
-            <option value="all">Todos os tipos</option>
-            <option value="inicio_sem_ok">Início sem OK GS</option>
-            <option value="nao_informado">Início Não Informado</option>
-            <option value="dados_incorretos">SM Dados Incorretos</option>
-            <option value="movimento_indevido">Movimento Indevido</option>
-            <option value="isca_problema">Isca com Problema</option>
-            <option value="interacao_cliente">Interação do Cliente</option>
-            <option value="fim_nao_informado">Fim Não Informado</option>
-            <option value="sm_atrasada">SM Enviada Atrasada</option>
-            <option value="outros">Outros</option>
-          </select>
-          <input type="text" id="ncVehicle" placeholder="Veículo..." oninput="NC.filter()" />
-          <input type="text" id="ncDriver"  placeholder="Motorista..." oninput="NC.filter()" />
-          <input type="date" id="ncDate" onchange="NC.filter()" />
-        </div>
-        <div class="toolbar-right">
-          <label class="btn btn-secondary" id="btnImportNC">
-            📁 Importar Planilha
-            <input type="file" accept=".xlsx,.xls,.csv" onchange="NC.import(event)" hidden />
-          </label>
-          <button class="btn btn-secondary" onclick="NC.exportXLS()">📊 Excel</button>
-          <button class="btn btn-secondary" onclick="NC.exportPDF()">📋 PDF</button>
-          <button class="btn btn-danger" onclick="NC.clearAll()" id="btnClearNC">🗑️ Limpar</button>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table class="table" id="ncTable">
-          <thead>
-            <tr>
-              <th onclick="NC.sort('viagem')">Viagem <span class="sort-icon">↕</span></th>
-              <th onclick="NC.sort('veiculo')">Veículo <span class="sort-icon">↕</span></th>
-              <th onclick="NC.sort('nomeCondutor')">Motorista <span class="sort-icon">↕</span></th>
-              <th onclick="NC.sort('naoConformidade')">Não Conformidade <span class="sort-icon">↕</span></th>
-              <th onclick="NC.sort('dataOcorrencia')">Data <span class="sort-icon">↕</span></th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="ncBody"></tbody>
-        </table>
-      </div>
-      <p class="table-footer" id="ncFooter">0 NCs</p>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th onclick="NC.sort('viagem')">Viagem ↕</th>
+            <th onclick="NC.sort('veiculo')">Veículo ↕</th>
+            <th onclick="NC.sort('nomeCondutor')">Motorista ↕</th>
+            <th onclick="NC.sort('naoConformidade')">Não Conformidade ↕</th>
+            <th onclick="NC.sort('dataOcorrencia')">Data ↕</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="ncBody"></tbody>
+      </table>
     </div>
+    <p class="table-footer" id="ncFooter"></p>
+  </div>
 
-    <!-- ─── TAB: DASHBOARD ──────────────────────── -->
-    <div id="tabDashboard" class="tab-content hidden">
-
-      <div class="metrics" id="dashMetrics"></div>
-
-      <div class="toolbar toolbar-plain">
-        <div class="period-tabs" id="periodTabs">
-          <button class="period-btn active" onclick="Dashboard.setPeriod(7, this)">7 dias</button>
-          <button class="period-btn" onclick="Dashboard.setPeriod(30, this)">30 dias</button>
-          <button class="period-btn" onclick="Dashboard.setPeriod(60, this)">60 dias</button>
-          <button class="period-btn" onclick="Dashboard.setPeriod(0, this)">Tudo</button>
+  <!-- ── ABA DASHBOARD ── -->
+  <div id="tabDashboard" class="tab-content hidden">
+    <div id="dashContent" class="hidden">
+      <div class="dash-metrics-wrap">
+        <div class="dash-metrics" id="dashMetrics"></div>
+      </div>
+      <div class="dash-toolbar">
+        <div class="period-tabs">
+          <button class="period-btn active" onclick="Dashboard.setPeriod(7,this)">7 dias</button>
+          <button class="period-btn" onclick="Dashboard.setPeriod(30,this)">30 dias</button>
+          <button class="period-btn" onclick="Dashboard.setPeriod(60,this)">60 dias</button>
+          <button class="period-btn" onclick="Dashboard.setPeriod(0,this)">Tudo</button>
         </div>
         <button class="btn btn-secondary" onclick="Dashboard.exportPDF()">📋 Exportar PDF</button>
       </div>
-
-      <div class="charts">
-        <div class="chart-card"><h4>Distribuição por Tipo</h4><div class="chart-wrap"><canvas id="chartTipo"></canvas></div></div>
-        <div class="chart-card"><h4>Evolução Temporal</h4><div class="chart-wrap"><canvas id="chartEvolucao"></canvas></div></div>
-        <div class="chart-card"><h4>Top 10 Veículos</h4><div class="chart-wrap"><canvas id="chartVeiculos"></canvas></div></div>
-        <div class="chart-card"><h4>Top 10 Motoristas</h4><div class="chart-wrap"><canvas id="chartMotoristas"></canvas></div></div>
-        <div class="chart-card"><h4>NCs por Dia da Semana</h4><div class="chart-wrap"><canvas id="chartSemana"></canvas></div></div>
-      </div>
-
-      <div id="dashEmpty" class="empty-state hidden">
-        📭 Importe uma planilha na aba Não Conformidades para ver o dashboard.
+      <div class="dash-grid">
+        <div class="chart-card chart-card-wide">
+          <div class="chart-card-title">📈 Evolução Temporal de NCs</div>
+          <div class="chart-body"><canvas id="chartEvolucao"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">🍩 Distribuição por Tipo</div>
+          <div class="chart-body"><canvas id="chartTipo"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">📅 NCs por Dia da Semana</div>
+          <div class="chart-body"><canvas id="chartSemana"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">🚛 Top 10 Veículos</div>
+          <div class="chart-body chart-body-tall"><canvas id="chartVeiculos"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">👤 Top 10 Motoristas</div>
+          <div class="chart-body chart-body-tall"><canvas id="chartMotoristas"></canvas></div>
+        </div>
       </div>
     </div>
-
-  </div><!-- /app -->
-
-  <!-- ─── MODAL VEÍCULO ──────────────────────────── -->
-  <div id="vehicleModal" class="modal-bg hidden" onclick="if(event.target===this)Frota.closeModal()">
-    <div class="modal modal-wide">
-      <h3 id="vehicleModalTitle" class="modal-title">Novo Veículo</h3>
-
-      <!-- Detail view (shown when clicking Ver) -->
-      <div id="vehicleModalContent" class="hidden"></div>
-
-      <!-- Form (shown when clicking Novo/Editar) -->
-      <div id="vehicleModalForm">
-        <form id="vehicleForm" onsubmit="Frota.saveModal(event)">
-          <div class="field">
-            <label>Placa *</label>
-            <input type="text" id="mPlaca" placeholder="ABC1D23" required />
-            <span id="mPlacaErr" class="form-error hidden">Obrigatório</span>
-          </div>
-          <div class="field">
-            <label>Vigência do Checklist *</label>
-            <input type="date" id="mVigencia" required />
-            <span id="mVigenciaErr" class="form-error hidden">Obrigatório</span>
-          </div>
-          <div class="field">
-            <label>Status do Checklist *</label>
-            <select id="mStatus" required>
-              <option value="">Selecione...</option>
-              <option value="OK">OK</option>
-              <option value="PENDENTE">PENDENTE</option>
-              <option value="VENCIDO">VENCIDO</option>
-            </select>
-            <span id="mStatusErr" class="form-error hidden">Obrigatório</span>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" onclick="Frota.closeModal()">Cancelar</button>
-            <button type="submit" class="btn btn-success">✅ Salvar</button>
-          </div>
-        </form>
-      </div>
-
-      <div id="vehicleModalActions" class="modal-actions" style="display:none">
-        <button class="btn btn-secondary" onclick="Frota.closeModal()">Fechar</button>
-      </div>
+    <div id="dashEmpty" class="empty-state hidden">
+      📭 Importe uma planilha na aba <strong>Não Conformidades</strong> para ver o dashboard.
     </div>
   </div>
 
-  <!-- ─── MODAL NC DETALHE ───────────────────────── -->
-  <div id="ncModal" class="modal-bg hidden" onclick="if(event.target===this)NC.closeModal()">
-    <div class="modal modal-wide">
-      <h3 class="modal-title">🚨 Detalhes da NC</h3>
-      <div id="ncModalContent"></div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="NC.closeModal()">Fechar</button>
-      </div>
+</div><!-- /app -->
+
+<!-- MODAL VEÍCULO -->
+<div id="vehicleModal" class="modal-bg hidden" onclick="if(event.target===this)Frota.closeModal()">
+  <div class="modal modal-wide">
+    <h3 id="vehicleModalTitle" class="modal-title">Veículo</h3>
+    <div id="vehicleModalContent" class="hidden"></div>
+    <div id="vehicleModalForm">
+      <form id="vehicleForm" onsubmit="Frota.saveModal(event)">
+        <div class="field">
+          <label>Placa *</label>
+          <input type="text" id="mPlaca" placeholder="ABC1D23" required/>
+          <span id="mPlacaErr" class="form-error hidden">Obrigatório</span>
+        </div>
+        <div class="field">
+          <label>Vigência do Checklist *</label>
+          <input type="date" id="mVigencia" required/>
+          <span id="mVigenciaErr" class="form-error hidden">Obrigatório</span>
+        </div>
+        <div class="field">
+          <label>Status do Checklist *</label>
+          <select id="mStatus" required>
+            <option value="">Selecione...</option>
+            <option value="OK">OK</option>
+            <option value="PENDENTE">PENDENTE</option>
+            <option value="VENCIDO">VENCIDO</option>
+          </select>
+          <span id="mStatusErr" class="form-error hidden">Obrigatório</span>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="Frota.closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-success">✅ Salvar</button>
+        </div>
+      </form>
+    </div>
+    <div id="vehicleModalActions" class="modal-actions" style="display:none">
+      <button class="btn btn-secondary" onclick="Frota.closeModal()">Fechar</button>
     </div>
   </div>
+</div>
 
-  <!-- ─── TOAST ──────────────────────────────────── -->
-  <div id="toastStack" class="toast-stack"></div>
+<!-- MODAL NC -->
+<div id="ncModal" class="modal-bg hidden" onclick="if(event.target===this)NC.closeModal()">
+  <div class="modal modal-wide">
+    <h3 class="modal-title">🚨 Detalhes da NC</h3>
+    <div id="ncModalContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="NC.closeModal()">Fechar</button>
+    </div>
+  </div>
+</div>
 
-  <script src="app.js"></script>
+<div id="toastStack" class="toast-stack"></div>
+<script src="app.js"></script>
 </body>
 </html>
