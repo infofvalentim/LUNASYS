@@ -75,6 +75,7 @@
           <option value="OK">✅ OK</option>
           <option value="PENDENTE">⚠️ Pendentes</option>
           <option value="VENCIDO">🔴 Vencidos</option>
+          <option value="A_VENCER">🟠 À Vencer (3 dias)</option>
         </select>
         <input type="date" id="frotaDate" onchange="Frota.filter()"/>
         <input type="text" id="frotaSearch" placeholder="Buscar placa..." oninput="Frota.filter()"/>
@@ -254,6 +255,30 @@
     <div id="ncModalContent"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="NC.closeModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RENOVAR VALIDADE -->
+<div id="renewModal" class="modal-bg hidden" onclick="if(event.target===this)Frota.closeRenewModal()">
+  <div class="modal">
+    <h3 class="modal-title">🔄 Renovar Validade</h3>
+    <p id="renewModalDesc" style="font-size:13px;color:var(--text2);margin-bottom:18px;"></p>
+    <div class="field">
+      <label>Nova Data de Validade *</label>
+      <input type="date" id="renewDate" required/>
+      <span id="renewDateErr" class="form-error hidden">Informe a nova data</span>
+    </div>
+    <div class="field">
+      <label>Novo Status</label>
+      <select id="renewStatus">
+        <option value="OK">OK</option>
+        <option value="PENDENTE">PENDENTE</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="Frota.closeRenewModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="Frota.saveRenew()">✅ Confirmar Renovação</button>
     </div>
   </div>
 </div>
