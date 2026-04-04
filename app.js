@@ -184,6 +184,13 @@ const Frota={
     const date=document.getElementById('frotaDate').value;
     const search=document.getElementById('frotaSearch').value.toLowerCase();
     return State.vehicles.filter(v=>{
+      if(status==='A_VENCER'){
+        // veículos com validade entre hoje e +3 dias
+        if(!v.vigenciaChecklist) return false;
+        const diff=daysFromToday(v.vigenciaChecklist);
+        if(diff===null) return false;
+        return diff>=0 && diff<=3;
+      }
       if(status!=='all'&&v.statusGeral!==status) return false;
       if(date&&v.vigenciaChecklist!==date) return false;
       if(search&&!(v.placa||'').toLowerCase().includes(search)) return false;
@@ -206,8 +213,17 @@ const Frota={
 
     // Alert banner
     const banner=document.getElementById('alertBanner');
-    if(ex>0){
-      banner.innerHTML='<span class="alert-icon">🔴</span><strong>'+ex+' checklist'+(ex>1?'s':'')+' vencido'+(ex>1?'s':'')+'</strong> — regularização necessária <button class="alert-btn" onclick="document.getElementById(\'frotaStatus\').value=\'VENCIDO\';Frota.filter()">Ver vencidos →</button>';
+    const avencer=v.filter(x=>{
+      if(!x.vigenciaChecklist) return false;
+      const diff=daysFromToday(x.vigenciaChecklist);
+      return diff!==null&&diff>=0&&diff<=3;
+    }).length;
+
+    if(ex>0||avencer>0){
+      let msg='';
+      if(ex>0) msg+='<span style="margin-right:16px">🔴 <strong>'+ex+' vencido'+(ex>1?'s':'')+'</strong> <button class="alert-btn" onclick="document.getElementById(\'frotaStatus\').value=\'VENCIDO\';Frota.filter()">Ver →</button></span>';
+      if(avencer>0) msg+='<span>🟠 <strong>'+avencer+' vence'+(avencer>1?'m':'')+' em até 3 dias</strong> <button class="alert-btn alert-btn-orange" onclick="document.getElementById(\'frotaStatus\').value=\'A_VENCER\';Frota.filter()">Ver →</button></span>';
+      banner.innerHTML='<span class="alert-icon">⚠️</span>'+msg;
       banner.classList.remove('hidden');
     } else {
       banner.classList.add('hidden');
@@ -274,7 +290,8 @@ const Frota={
           +'<td>'+statusIcon+' <span class="st-text st-'+(v.statusGeral||'').toLowerCase()+'">'+esc(v.statusChecklist||'-')+'</span></td>'
           +'<td>'+defBadge+'</td>'
           +'<td><div class="row-actions">'
-          +'<button class="icon-btn" onclick="Frota.openDetail(\''+esc(v.placa)+'\')" title="Ver">👁</button>'
+          +'<button class="icon-btn" onclick="Frota.openDetail(\''+esc(v.placa)+'\')" title="Ver detalhes">👁</button>'
+          +(isExp||isPen?'<button class="icon-btn icon-btn-renew" onclick="Frota.openRenewModal(\''+esc(v.placa)+'\')" title="Renovar validade">🔄</button>':'')
           +(can('vehicles.delete')?'<button class="icon-btn icon-btn-del" onclick="Frota.delete(\''+esc(v.placa)+'\')" title="Excluir">🗑</button>':'')
           +'</div></td></tr>';
       }).join('');
@@ -283,7 +300,50 @@ const Frota={
     document.getElementById('frotaFooter').textContent=v.length+' registros · '+data.length+' exibidos';
   },
 
-  openDetail(placa){
+  openRenewModal(placa){
+    const v=State.vehicles.find(x=>x.placa===placa);
+    if(!v) return;
+    this._renewPlaca=placa;
+    const ago=v.vigenciaChecklist?daysFromToday(v.vigenciaChecklist):null;
+    let info='';
+    if(ago!==null&&ago<0) info='Vencido há '+Math.abs(ago)+' dia'+(Math.abs(ago)>1?'s')+'.';
+    else if(ago!==null)    info='Vence em '+ago+' dia'+(ago!==1?'s':'')+'.';
+    document.getElementById('renewModalDesc').textContent=
+      'Placa: '+placa+(info?' — '+info:'');
+    document.getElementById('renewDate').value='';
+    document.getElementById('renewDateErr').classList.add('hidden');
+    document.getElementById('renewStatus').value='OK';
+    document.getElementById('renewModal').classList.remove('hidden');
+  },
+
+  closeRenewModal(){
+    document.getElementById('renewModal').classList.add('hidden');
+    this._renewPlaca=null;
+  },
+
+  saveRenew(){
+    const placa=this._renewPlaca;
+    const newDate=document.getElementById('renewDate').value;
+    const newStatus=document.getElementById('renewStatus').value;
+    if(!newDate){
+      document.getElementById('renewDateErr').classList.remove('hidden');
+      return;
+    }
+    State.vehicles=State.vehicles.map(v=>{
+      if(v.placa!==placa) return v;
+      return{
+        ...v,
+        vigenciaChecklist:newDate,
+        statusChecklist:newStatus,
+        statusGeral:calcStatus(newDate,newStatus),
+        updatedAt:new Date().toISOString(),
+      };
+    });
+    State.save();
+    this.closeRenewModal();
+    this.render();
+    toast('✅ Validade de '+placa+' renovada para '+fmtDate(newDate),'success');
+  },
     const v=State.vehicles.find(x=>x.placa===placa);
     if(!v) return;
     const devs=v.dispositivos||[];
