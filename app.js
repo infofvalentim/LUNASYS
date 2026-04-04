@@ -306,7 +306,8 @@ const Frota={
     this._renewPlaca=placa;
     const ago=v.vigenciaChecklist?daysFromToday(v.vigenciaChecklist):null;
     let info='';
-    if(ago!==null&&ago<0) info='Vencido há '+Math.abs(ago)+' dia'+(Math.abs(ago)>1?'s')+'.';
+    if(ago!==null&&ago<0) info='Vencido há '+Math.abs(ago)+' dia'+(Math.abs(ago)>1?'s':'')+'.';
+    else if(ago!==null)    info='Vence em '+ago+' dia'+(ago!==1?'s':'')+'. ';
     else if(ago!==null)    info='Vence em '+ago+' dia'+(ago!==1?'s':'')+'.';
     document.getElementById('renewModalDesc').textContent=
       'Placa: '+placa+(info?' — '+info:'');
@@ -344,6 +345,8 @@ const Frota={
     this.render();
     toast('✅ Validade de '+placa+' renovada para '+fmtDate(newDate),'success');
   },
+
+  openDetail(placa){
     const v=State.vehicles.find(x=>x.placa===placa);
     if(!v) return;
     const devs=v.dispositivos||[];
