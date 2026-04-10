@@ -1,7 +1,7 @@
 'use strict';
 
 const USERS = [
-  { id:'1', email:'info.fvalentim@gmail.com', password:'Tatubo11a',   name:'Fernando Valentim', role:'ADMIN'   },
+  { id:'1', email:'info.fvalentim@gmail.com', password:'operador123',   name:'Felipe Valentim', role:'ADMIN'   },
   { id:'2', email:'gerente@lunasys.com',       password:'gerente123',  name:'Gerente',           role:'MANAGER' },
   { id:'3', email:'operador@lunasys.com',      password:'operador123', name:'Operador',           role:'OPERATOR'},
 ];
